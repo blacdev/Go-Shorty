@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -34,8 +35,8 @@ func MapHandler(pathsToUrls map[string]string, fallback http.Handler) http.Handl
 
 
 type URLMapper struct {
-	Path string `yaml:"path"`
-	Url string `yaml:"url"`
+	Path string `yaml:"path" json:"path"` 
+	Url string `yaml:"url" json:"url"`
 }
 
 // YAMLHandler will parse the provided YAML and then return
@@ -67,6 +68,7 @@ func YAMLHandler(yml []byte, fallback http.Handler) (http.HandlerFunc, error) {
 	return func(w http.ResponseWriter, r *http.Request){
 		for _, mapp := range mapper {
 			if mapp.Path == r.URL.Path {
+				
 				http.Redirect(w, r, mapp.Url, http.StatusMovedPermanently)
 				return
 			}
@@ -77,3 +79,21 @@ func YAMLHandler(yml []byte, fallback http.Handler) (http.HandlerFunc, error) {
 }
 
 
+func JsonHandler(jsn []byte, fallback http.Handler) (http.HandlerFunc, error) {
+var mapper []URLMapper
+
+err:= json.Unmarshal(jsn, &mapper)
+
+if err != nil {
+	return nil, err
+}
+
+return func(w http.ResponseWriter, r *http.Request){
+for _, mapp := range mapper {
+	if mapp.Path == r.URL.Path {
+		http.Redirect(w, r, mapp.Url, http.StatusMovedPermanently)
+	}
+}
+fallback.ServeHTTP(w, r)
+}, nil
+}

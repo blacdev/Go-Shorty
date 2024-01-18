@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -14,9 +15,7 @@ func TestMapHandler(t *testing.T) {
 	}
 
 	// Define a fallback handler for testing
-	fallback := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "Fallback", http.StatusNotFound)
-	})
+	fallback := fallbackTest(t)
 
 	// Create a MapHandler
 	handler := MapHandler(pathsToUrls, fallback)
@@ -46,31 +45,45 @@ func TestMapHandler(t *testing.T) {
 }
 
 func TestYAMLHandler(t *testing.T) {
-	type args struct {
-		yml      []byte
-		fallback http.Handler
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    http.HandlerFunc
-		wantErr bool
-	}{
-		// TODO: Add test cases.
+	t.Run("Test yaml handler", func(t *testing.T) {
 
-}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := YAMLHandler(tt.args.yml, tt.args.fallback)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("YAMLHandler() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("YAMLHandler() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+		ymlData := []byte(`
+- path: /google
+  url: https://www.google.com
+- path: /github
+  url: https://www.github.com
+- path: /stackoverflow
+  url: https://www.stackoverflow.com
+`)
+		// ymlData = ReadFile("sample.yml")
+		fallback := fallbackTest(t)
+
+		handler, err := YAMLHandler(ymlData, fallback)
+
+		if err != nil {
+			t.Errorf("%v", err)
+		}
+		req, err := http.NewRequest("GET", "/google", nil)
+
+		if err != nil {
+			t.Errorf("%v", err)
+		}
+
+		rr := httptest.NewRecorder()
+
+		handler(rr, req)
+
+			// Check the status code
+		if status := rr.Code; status != http.StatusMovedPermanently {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusMovedPermanently)
+		}
+
+		// Check the redirect location
+		if location := rr.Header().Get("Location"); location != "https://www.google.com" {
+			t.Errorf("handler returned wrong location: got %v want %v", location, "https://www.google.com")
+		}
+	})
+
 }
 
 func Test_ReadFile(t *testing.T) {
@@ -78,25 +91,77 @@ func Test_ReadFile(t *testing.T) {
 		name string
 	}
 	tests := []struct {
-		test_name     string
-		args     args
-		wantData []byte
+		test_name string
+		args      args
+		wantData  []byte
 	}{
 		// TODO: Add test cases.
 		{
 			test_name: "Reading a file",
 			args: args{
-				name: "dummyfile.txt",
+				name: "sample.yml",
 			},
-			wantData: []byte("testing"),
-	},
-}
-for _, tt := range tests {
-	t.Run(tt.test_name, func(t *testing.T) {
-		if gotData := ReadFile(tt.args.name); !reflect.DeepEqual(gotData, tt.wantData) {
+			wantData: []byte(
+`- path: /google
+  url: https://www.google.com
+- path: /github
+  url: https://www.github.com
+- path: /stackoverflow
+  url: https://www.stackoverflow.com`),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.test_name, func(t *testing.T) {
+			if gotData := ReadFile(tt.args.name); !reflect.DeepEqual(gotData, tt.wantData) {
 
-				t.Errorf("reafFile() = %v, want %v", gotData, tt.wantData)
+				t.Errorf("reafFile() = %v, want %v", string(gotData), string(tt.wantData))
 			}
 		})
 	}
+}
+
+func TestJsonHandler(t *testing.T) {
+	t.Run("Test JSON Handler", func(t *testing.T) {
+
+		jsonData := []byte(
+			`[
+					{"Path":"/test-path1", "URL":"http://example1.com"},
+					{"Path":"/test-path2", "URL":"http://example2.com"}
+			]`,
+	)
+
+		fallback := fallbackTest(t)
+
+		handler, err := JsonHandler(jsonData, fallback)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+		req, err := http.NewRequest("GET", "/test-path1", nil)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		rr := httptest.NewRecorder()
+
+		handler(rr, req)
+
+			// Check the status code
+	if status := rr.Code; status != http.StatusMovedPermanently {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusMovedPermanently)
+	}
+
+	// Check the redirect location
+	if location := rr.Header().Get("Location"); location != "http://example1.com" {
+		t.Errorf("handler returned wrong location: got %v want %v", location, "http://example1.com")
+	}
+	})
+}
+
+func fallbackTest(t *testing.T) http.HandlerFunc{
+	t.Helper()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Fallback", http.StatusNotFound)
+	})
 }

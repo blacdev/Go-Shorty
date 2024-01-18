@@ -1,0 +1,4 @@
+[
+  {"Path":"/test-path1", "URL":"http://example1.com"},
+	{"Path":"/test-path2", "URL":"http://example2.com"}
+]

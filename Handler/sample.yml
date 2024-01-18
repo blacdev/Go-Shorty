@@ -1,6 +1,6 @@
-- Path: /google
-  URL: https://www.google.com
-- Path: /github
-  URL: https://www.github.com
-- Path: /stackoverflow
-  URL: https://www.stackoverflow.com
+- path: /google
+  url: https://www.google.com
+- path: /github
+  url: https://www.github.com
+- path: /stackoverflow
+  url: https://www.stackoverflow.com
