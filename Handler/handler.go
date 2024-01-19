@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -66,9 +67,12 @@ func YAMLHandler(yml []byte, fallback http.Handler) (http.HandlerFunc, error) {
 	}
 	
 	return func(w http.ResponseWriter, r *http.Request){
+
+		url := strings.Split(r.URL.Path, "/")
+		path := "/" + url[len(url) - 1]
+
 		for _, mapp := range mapper {
-			if mapp.Path == r.URL.Path {
-				
+			if mapp.Path == path {
 				http.Redirect(w, r, mapp.Url, http.StatusMovedPermanently)
 				return
 			}
@@ -80,20 +84,24 @@ func YAMLHandler(yml []byte, fallback http.Handler) (http.HandlerFunc, error) {
 
 
 func JsonHandler(jsn []byte, fallback http.Handler) (http.HandlerFunc, error) {
-var mapper []URLMapper
+	var mapper []URLMapper
 
-err:= json.Unmarshal(jsn, &mapper)
+	err:= json.Unmarshal(jsn, &mapper)
 
-if err != nil {
-	return nil, err
-}
-
-return func(w http.ResponseWriter, r *http.Request){
-for _, mapp := range mapper {
-	if mapp.Path == r.URL.Path {
-		http.Redirect(w, r, mapp.Url, http.StatusMovedPermanently)
+	if err != nil {
+		return nil, err
 	}
-}
-fallback.ServeHTTP(w, r)
-}, nil
+
+	
+	return func(w http.ResponseWriter, r *http.Request){
+	url := strings.Split(r.URL.Path, "/")
+	path := "/" + url[len(url) - 1]
+	for _, mapp := range mapper {
+		if mapp.Path == path {
+			http.Redirect(w, r, mapp.Url, http.StatusMovedPermanently)
+			return
+		}
+	}
+	fallback.ServeHTTP(w, r)
+	}, nil
 }
